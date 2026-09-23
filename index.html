@@ -322,7 +322,7 @@
                     </tr>
                 </thead>
                 <tbody id="matchdayTableBody">
-                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Lade Spieldaten aus Supabase...</td></tr>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für diesen Spieltag erfasst.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -404,45 +404,12 @@
         "Glück-Auf Sterkrade II",
         "BV Osterfeld II",
         "SC Eintracht Oberhausen",
+        "FC Blau Weiß Italia Oberhausen e.V.",
         "FC Welheim II",
         "SV Blau-Weiß Fuhlenbrock II",
         "SV 1911 Bottrop",
         "FC Italia (zg. o.W.)",
         "VfR 08 Oberhausen II (zg. o.W.)"
-    ];
-
-    // Initiale Demodaten für die ersten 3 Spieltage zum automatischen Befüllen
-    const initialMatchdaysData = [
-        // Spieltag 1
-        {matchday: 1, match_index: 0, home_team: "SF 08/21 Bottrop", away_team: "Post SV Oberhausen"},
-        {matchday: 1, match_index: 1, home_team: "SV Adler Osterfeld II", away_team: "GW Holten"},
-        {matchday: 1, match_index: 2, home_team: "DJK Adler United Oberhausen II", away_team: "Schacht 11 Bottrop"},
-        {matchday: 1, match_index: 3, home_team: "Schwarz-Weiss Alstaden II", away_team: "TB Oberhausen III"},
-        {matchday: 1, match_index: 4, home_team: "Glück-Auf Sterkrade II", away_team: "SF 06 Sterkrade"},
-        {matchday: 1, match_index: 5, home_team: "BV Osterfeld II", away_team: "SC Eintracht Oberhausen"},
-        {matchday: 1, match_index: 6, home_team: "FC Italia (zg. o.W.)", away_team: "FC Welheim II"},
-        {matchday: 1, match_index: 7, home_team: "VfR 08 Oberhausen II (zg. o.W.)", away_team: "SV Blau-Weiß Fuhlenbrock II"},
-        {matchday: 1, match_index: 8, home_team: "SV 1911 Bottrop", away_team: "spielfrei"},
-        // Spieltag 2
-        {matchday: 2, match_index: 0, home_team: "GW Holten", away_team: "SV Blau-Weiß Fuhlenbrock II"},
-        {matchday: 2, match_index: 1, home_team: "FC Welheim II", away_team: "SV 1911 Bottrop"},
-        {matchday: 2, match_index: 2, home_team: "Schacht 11 Bottrop", away_team: "BV Osterfeld II"},
-        {matchday: 2, match_index: 3, home_team: "Post SV Oberhausen", away_team: "DJK Adler United Oberhausen II"},
-        {matchday: 2, match_index: 4, home_team: "SC Eintracht Oberhausen", away_team: "Glück-Auf Sterkrade II"},
-        {matchday: 2, match_index: 5, home_team: "TB Oberhausen III", away_team: "SF 08/21 Bottrop"},
-        {matchday: 2, match_index: 6, home_team: "SV Adler Osterfeld II", away_team: "VfR 08 Oberhausen II (zg. o.W.)"},
-        {matchday: 2, match_index: 7, home_team: "Schwarz-Weiss Alstaden II", away_team: "spielfrei"},
-        {matchday: 2, match_index: 8, home_team: "SF 06 Sterkrade", away_team: "FC Italia (zg. o.W.)"},
-        // Spieltag 3
-        {matchday: 3, match_index: 0, home_team: "SV Adler Osterfeld II", away_team: "FC Welheim II"},
-        {matchday: 3, match_index: 1, home_team: "DJK Adler United Oberhausen II", away_team: "BV Osterfeld II"},
-        {matchday: 3, match_index: 2, home_team: "Schwarz-Weiss Alstaden II", away_team: "GW Holten"},
-        {matchday: 3, match_index: 3, home_team: "Glück-Auf Sterkrade II", away_team: "Schacht 11 Bottrop"},
-        {matchday: 3, match_index: 4, home_team: "Post SV Oberhausen", away_team: "TB Oberhausen III"},
-        {matchday: 3, match_index: 5, home_team: "SV 1911 Bottrop", away_team: "SF 06 Sterkrade"},
-        {matchday: 3, match_index: 6, home_team: "FC Italia (zg. o.W.)", away_team: "SC Eintracht Oberhausen"},
-        {matchday: 3, match_index: 7, home_team: "VfR 08 Oberhausen II (zg. o.W.)", away_team: "SF 08/21 Bottrop"},
-        {matchday: 3, match_index: 8, home_team: "SV Blau-Weiß Fuhlenbrock II", away_team: "spielfrei"}
     ];
 
     async function loadMatches() {
@@ -452,14 +419,9 @@
             .order('matchday', { ascending: true })
             .order('match_index', { ascending: true });
 
-        if (error || !data || data.length === 0) {
-            // Falls Tabelle leer ist, Initiale Daten hochladen
-            await supabaseClient.from('sf06_matchdays').upsert(initialMatchdaysData);
-            loadMatches();
-            return;
+        if (!error && data) {
+            allMatchesFromDB = data;
         }
-
-        allMatchesFromDB = data;
         renderAll();
     }
 
@@ -509,7 +471,7 @@
     }
 
     function changeMatchday(amount) {
-        currentMatchday = Math.max(1, Math.min(3, currentMatchday + amount));
+        currentMatchday = Math.max(1, Math.min(34, currentMatchday + amount));
         renderAll();
     }
 
@@ -530,7 +492,7 @@
         let matches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
 
         if (matches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele gefunden.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für Spieltag ${currentMatchday} hinterlegt. ${isAdmin ? 'Trage sie unten im Admin-Bereich ein.' : ''}</td></tr>`;
             return;
         }
 
@@ -547,7 +509,7 @@
 
             let tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-size: 0.8rem; color: var(--sf-bright-green);">Termin offen</td>
+                <td style="font-size: 0.8rem; color: var(--sf-bright-green);">${m.match_date ? m.match_date.split('-').reverse().join('.') : 'Termin offen'}</td>
                 <td class="${homeClass}" style="text-align: right;">${m.home_team}</td>
                 <td style="text-align: center;">${resultDisplay}</td>
                 <td class="${awayClass}">${m.away_team}</td>
@@ -568,7 +530,7 @@
 
         allMatchesFromDB.forEach(m => {
             if (m.home_team === "spielfrei" || m.away_team === "spielfrei") return;
-            if (m.home_team.includes("zg. o.W.") || m.away_team.includes("zg. o.W.")) return; // Rückzieher nicht werten
+            if (m.home_team.includes("zg. o.W.") || m.away_team.includes("zg. o.W.")) return;
             if (m.home_score === null || m.away_score === null || !stats[m.home_team] || !stats[m.away_team]) return;
 
             stats[m.home_team].played++;
@@ -603,7 +565,6 @@
             return b.goalsFor - a.goalsFor;
         });
 
-        // Rückzieher fest ans Ende hängen
         teamsList.filter(t => t.includes("zg. o.W.")).forEach(tName => {
             if (stats[tName]) sorted.push(stats[tName]);
         });
@@ -637,6 +598,11 @@
         let container = document.getElementById('matchInputsContainer');
         container.innerHTML = '';
         let matches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
+
+        if (matches.length === 0) {
+            container.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Keine Paarungen in der DB für diesen Spieltag. Du kannst sie in Supabase anlegen.</div>`;
+            return;
+        }
 
         matches.forEach((m, idx) => {
             if (m.home_team === "spielfrei" || m.away_team === "spielfrei") return;
