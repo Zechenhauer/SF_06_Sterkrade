@@ -239,8 +239,15 @@
             gap: 8px;
             align-items: end;
         }
+        .form-grid-new {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr 1fr;
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
         @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr 1fr; }
+            .form-grid, .form-grid-new { grid-template-columns: 1fr 1fr; }
             .form-grid .form-group-team { grid-column: span 2; }
         }
         .form-group label {
@@ -276,6 +283,21 @@
             transition: background 0.2s;
         }
         .btn:hover { background: #3fe053; }
+
+        .btn-secondary {
+            background: #215c38;
+            color: #ffffff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.8rem;
+            width: 100%;
+            margin-top: 5px;
+            transition: background 0.2s;
+        }
+        .btn-secondary:hover { background: var(--primary-green-hover); }
         
         .btn-danger {
             background: transparent;
@@ -369,11 +391,36 @@
     <!-- ADMIN BEREICH -->
     <div class="admin-card" id="adminCard">
         <div style="font-weight: bold; color: var(--sf-bright-green); margin-bottom: 12px; text-transform: uppercase; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
-            <span>✏️ Ergebnisse für <span id="adminMatchdayLabel">Spieltag 1</span> erfassen</span>
+            <span>✏️ Ergebnisse & Spielplan für <span id="adminMatchdayLabel">Spieltag 1</span> verwalten</span>
             <span style="font-size: 0.7rem; color: #2ecc40;">● Admin-Modus Aktiv</span>
         </div>
+        
         <div id="matchInputsContainer"></div>
-        <button class="btn" onclick="saveAllMatches()">Alle Ergebnisse für diesen Spieltag speichern</button>
+        <button class="btn" onclick="saveAllMatches()">Ergebnisse für diesen Spieltag speichern</button>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+        <!-- Neues Spiel anlegen -->
+        <div style="font-weight: bold; color: var(--text-color); margin-bottom: 8px; font-size: 0.8rem;">➕ Neues Spiel zu Spieltag <span id="newMatchDayNum">1</span> hinzufügen:</div>
+        <div class="form-grid-new">
+            <div class="form-group">
+                <label>Heimmannschaft</label>
+                <select id="newHomeTeam" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>Gastmannschaft</label>
+                <select id="newAwayTeam" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>Datum</label>
+                <input type="date" id="newMatchDate" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Uhrzeit</label>
+                <input type="time" id="newMatchTime" class="form-control" value="15:00">
+            </div>
+        </div>
+        <button class="btn-secondary" onclick="addNewMatchToDatabase()">💾 Spiel zur Datenbank hinzufügen</button>
     </div>
 
     <div class="admin-toggle-wrapper">
@@ -386,7 +433,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ADMIN_PIN = "1906";
+    const ADMIN_PIN = "1921";
     let isAdmin = false;
     let currentMatchday = 1;
     let allMatchesFromDB = [];
@@ -408,6 +455,7 @@
         "FC Welheim II",
         "SV Blau-Weiß Fuhlenbrock II",
         "SV 1911 Bottrop",
+        "spielfrei",
         "FC Italia (zg. o.W.)",
         "VfR 08 Oberhausen II (zg. o.W.)"
     ];
@@ -457,14 +505,49 @@
             alert("Fehler beim Speichern!");
             console.error(error);
         } else {
+            alert("Ergebnisse erfolgreich gespeichert!");
             loadMatches();
         }
     }
 
-    async function deleteMatchResult(matchId) {
+    async function addNewMatchToDatabase() {
+        let homeTeam = document.getElementById('newHomeTeam').value;
+        let awayTeam = document.getElementById('newAwayTeam').value;
+        let matchDate = document.getElementById('newMatchDate').value;
+        let matchTime = document.getElementById('newMatchTime').value;
+
+        if (homeTeam === awayTeam && homeTeam !== "spielfrei") {
+            alert("Heim- und Gastmannschaft können nicht identisch sein!");
+            return;
+        }
+
+        // Nächsten match_index für diesen Spieltag ermitteln
+        let currentMatches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
+        let nextIndex = currentMatches.length > 0 ? Math.max(...currentMatches.map(m => m.match_index)) + 1 : 0;
+
         let { error } = await supabaseClient
             .from('sf06_matchdays')
-            .update({ home_score: null, away_score: null })
+            .insert([{
+                matchday: currentMatchday,
+                match_index: nextIndex,
+                home_team: homeTeam,
+                away_team: awayTeam,
+                match_date: matchDate || null,
+                match_time: matchTime || null
+            }]);
+
+        if (error) {
+            alert("Fehler beim Hinzufügen des Spiels: " + error.message);
+        } else {
+            loadMatches();
+        }
+    }
+
+    async function deleteMatch(matchId) {
+        if (!confirm("Möchtest du diese Partie wirklich löschen?")) return;
+        let { error } = await supabaseClient
+            .from('sf06_matchdays')
+            .delete()
             .eq('id', matchId);
 
         if (!error) loadMatches();
@@ -478,11 +561,12 @@
     function renderAll() {
         document.getElementById('matchdayDisplay').textContent = `Spieltag ${currentMatchday}`;
         document.getElementById('adminMatchdayLabel').textContent = `Spieltag ${currentMatchday}`;
+        document.getElementById('newMatchDayNum').textContent = currentMatchday;
         document.getElementById('matchdayTableHeader').textContent = `Spieltag ${currentMatchday} — Spiele & Ergebnisse`;
 
         renderMatchdayTable();
         renderTable();
-        if (isAdmin) renderInputForm();
+        if (isAdmin) renderAdminControls();
     }
 
     function renderMatchdayTable() {
@@ -492,7 +576,7 @@
         let matches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
 
         if (matches.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für Spieltag ${currentMatchday} hinterlegt. ${isAdmin ? 'Trage sie unten im Admin-Bereich ein.' : ''}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für Spieltag ${currentMatchday} erfasst. ${isAdmin ? 'Füge unten welche hinzu!' : ''}</td></tr>`;
             return;
         }
 
@@ -505,11 +589,13 @@
                 ? `<strong>${m.home_score}:${m.away_score}</strong>` 
                 : (m.away_team === "spielfrei" || m.home_team === "spielfrei" ? `-` : `<span style="color: var(--text-muted); font-style: italic;">vs</span>`);
 
-            let deleteBtn = (isAdmin && hasResult) ? `<button class="btn-danger" onclick="deleteMatchResult(${m.id})" title="Ergebnis löschen">✕</button>` : '';
+            let deleteBtn = isAdmin ? `<button class="btn-danger" onclick="deleteMatch(${m.id})" title="Partie löschen">✕</button>` : '';
+            let formattedDate = m.match_date ? m.match_date.split('-').reverse().join('.') : 'Termin offen';
+            let timeStr = m.match_time ? ` ${m.match_time} Uhr` : '';
 
             let tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-size: 0.8rem; color: var(--sf-bright-green);">${m.match_date ? m.match_date.split('-').reverse().join('.') : 'Termin offen'}</td>
+                <td style="font-size: 0.8rem; color: var(--sf-bright-green);">${formattedDate}${timeStr}</td>
                 <td class="${homeClass}" style="text-align: right;">${m.home_team}</td>
                 <td style="text-align: center;">${resultDisplay}</td>
                 <td class="${awayClass}">${m.away_team}</td>
@@ -525,7 +611,9 @@
 
         let stats = {};
         teamsList.forEach(t => {
-            stats[t] = { name: t, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+            if (t !== "spielfrei") {
+                stats[t] = { name: t, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+            }
         });
 
         allMatchesFromDB.forEach(m => {
@@ -594,44 +682,58 @@
         });
     }
 
-    function renderInputForm() {
+    function renderAdminControls() {
         let container = document.getElementById('matchInputsContainer');
         container.innerHTML = '';
         let matches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
 
         if (matches.length === 0) {
-            container.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Keine Paarungen in der DB für diesen Spieltag. Du kannst sie in Supabase anlegen.</div>`;
-            return;
+            container.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Keine Spiele für diesen Spieltag eingetragen. Nutze unten das Formular, um Partien anzulegen.</div>`;
+        } else {
+            matches.forEach((m, idx) => {
+                if (m.home_team === "spielfrei" || m.away_team === "spielfrei") return;
+
+                let card = document.createElement('div');
+                card.className = 'match-input-card';
+                card.innerHTML = `
+                    <div style="font-size: 0.8rem; color: var(--sf-bright-green); font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                        <span>Partie ${idx + 1} (${m.match_date ? m.match_date.split('-').reverse().join('.') : 'Termin offen'})</span>
+                        <button class="btn-danger" onclick="deleteMatch(${m.id})" style="font-size: 0.8rem;">Spiel löschen</button>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group form-group-team">
+                            <label>Heim</label>
+                            <span style="font-size: 0.8rem; font-weight: bold;">${m.home_team}</span>
+                        </div>
+                        <div class="form-group form-group-team">
+                            <label>Gast</label>
+                            <span style="font-size: 0.8rem; font-weight: bold;">${m.away_team}</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Tore Heim</label>
+                            <input type="number" id="hs_${idx}" class="form-control" value="${m.home_score !== null ? m.home_score : ''}" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Tore Gast</label>
+                            <input type="number" id="as_${idx}" class="form-control" value="${m.away_score !== null ? m.away_score : ''}" min="0">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
 
-        matches.forEach((m, idx) => {
-            if (m.home_team === "spielfrei" || m.away_team === "spielfrei") return;
+        // Dropdowns für neue Spiele befüllen
+        let homeSelect = document.getElementById('newHomeTeam');
+        let awaySelect = document.getElementById('newAwayTeam');
+        homeSelect.innerHTML = '';
+        awaySelect.innerHTML = '';
 
-            let card = document.createElement('div');
-            card.className = 'match-input-card';
-            card.innerHTML = `
-                <div style="font-size: 0.8rem; color: var(--sf-bright-green); font-weight: bold; margin-bottom: 8px;">Partie ${idx + 1}</div>
-                <div class="form-grid">
-                    <div class="form-group form-group-team">
-                        <label>Heim</label>
-                        <span style="font-size: 0.8rem; font-weight: bold;">${m.home_team}</span>
-                    </div>
-                    <div class="form-group form-group-team">
-                        <label>Gast</label>
-                        <span style="font-size: 0.8rem; font-weight: bold;">${m.away_team}</span>
-                    </div>
-                    <div class="form-group">
-                        <label>Tore Heim</label>
-                        <input type="number" id="hs_${idx}" class="form-control" value="${m.home_score !== null ? m.home_score : ''}" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Tore Gast</label>
-                        <input type="number" id="as_${idx}" class="form-control" value="${m.away_score !== null ? m.away_score : ''}" min="0">
-                    </div>
-                </div>
-            `;
-            container.appendChild(card);
+        teamsList.forEach(t => {
+            homeSelect.innerHTML += `<option value="${t}">${t}</option>`;
+            awaySelect.innerHTML += `<option value="${t}">${t}</option>`;
         });
+        if (awaySelect.options.length > 1) awaySelect.selectedIndex = 1;
     }
 
     function toggleAdminMode() {
