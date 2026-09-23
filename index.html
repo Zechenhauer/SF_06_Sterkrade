@@ -433,10 +433,11 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ADMIN_PIN = "1906";
+    const ADMIN_PIN = "1921";
     let isAdmin = false;
     let currentMatchday = 1;
     let allMatchesFromDB = [];
+    let initialLoadDone = false;
 
     const teamsList = [
         "SF 06 Sterkrade",
@@ -445,7 +446,7 @@
         "SV Adler Osterfeld II",
         "GW Holten",
         "DJK Adler United Oberhausen II",
-        "Schacht 11",
+        "Schacht 11 Bottrop",
         "Schwarz-Weiss Alstaden II",
         "TB Oberhausen III",
         "Glück-Auf Sterkrade II",
@@ -455,6 +456,7 @@
         "FC Welheim II",
         "SV Blau-Weiß Fuhlenbrock II",
         "SV 1911 Bottrop",
+        "spielfrei",
         "FC Italia (zg. o.W.)",
         "VfR 08 Oberhausen II (zg. o.W.)"
     ];
@@ -468,8 +470,49 @@
 
         if (!error && data) {
             allMatchesFromDB = data;
+            
+            // Beim allerersten Laden den aktuellen Spieltag anhand des heutigen Datums ermitteln
+            if (!initialLoadDone) {
+                currentMatchday = determineCurrentMatchday(data);
+                initialLoadDone = true;
+            }
         }
         renderAll();
+    }
+
+    // Automatische Ermittlung des aktuellen Spieltags basierend auf dem Datum
+    function determineCurrentMatchday(matches) {
+        if (!matches || matches.length === 0) return 1;
+
+        const todayIso = new Date().toISOString().split('T')[0];
+        let bestMatchday = 1;
+        let minDateDiff = Infinity;
+        let groupDays = {};
+
+        // Spiele nach Spieltagen gruppieren und das nahliegendste/heutige Datum finden
+        matches.forEach(m => {
+            if (!m.match_date) return;
+            if (!groupDays[m.matchday]) {
+                groupDays[m.matchday] = m.match_date;
+            }
+
+            let diff = Math.abs(new Date(m.match_date) - new Date(todayIso));
+            // bevorzuge Spieltage, die heute oder in der Zukunft liegen, aber nimm den nähesten
+            if (m.match_date >= todayIso && diff < minDateDiff) {
+                minDateDiff = diff;
+                bestMatchday = m.matchday;
+            }
+        });
+
+        // Falls alle Spieltage in der Vergangenheit liegen, nimm den letzten Spieltag
+        if (minDateDiff === Infinity) {
+            let matchdays = Object.keys(groupDays).map(Number);
+            if (matchdays.length > 0) {
+                bestMatchday = Math.max(...matchdays);
+            }
+        }
+
+        return bestMatchday;
     }
 
     async function saveAllMatches() {
@@ -520,7 +563,6 @@
             return;
         }
 
-        // Nächsten match_index für diesen Spieltag ermitteln
         let currentMatches = allMatchesFromDB.filter(m => m.matchday === currentMatchday);
         let nextIndex = currentMatches.length > 0 ? Math.max(...currentMatches.map(m => m.match_index)) + 1 : 0;
 
@@ -708,7 +750,7 @@
                             <label>Gast</label>
                             <span style="font-size: 0.8rem; font-weight: bold;">${m.away_team}</span>
                         </div>
-                        <div class="form-group">
+                        <div class="main-group form-group">
                             <label>Tore Heim</label>
                             <input type="number" id="hs_${idx}" class="form-control" value="${m.home_score !== null ? m.home_score : ''}" min="0">
                         </div>
@@ -722,7 +764,6 @@
             });
         }
 
-        // Dropdowns für neue Spiele befüllen
         let homeSelect = document.getElementById('newHomeTeam');
         let awaySelect = document.getElementById('newAwayTeam');
         homeSelect.innerHTML = '';
@@ -738,6 +779,7 @@
     function toggleAdminMode() {
         const adminCard = document.getElementById('adminCard');
         if (isAdmin) {
+            isAdmin = function(){}; // dummy
             isAdmin = false;
             adminCard.style.display = 'none';
             renderMatchdayTable();
