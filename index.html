@@ -313,7 +313,7 @@
 
 <div class="container">
     <div class="banner-wrapper">
-        <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/vereinslogos/banner_1906.png" alt="SF 06 Banner" class="app-banner">
+        <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/vereinslogos/banner_1906%20(1).png" alt="SF 06 Banner" class="app-banner">
     </div>
 
     <div class="title-row">
@@ -471,7 +471,6 @@
         if (!error && data) {
             allMatchesFromDB = data;
             
-            // Beim allerersten Laden den aktuellen Spieltag anhand des heutigen Datums ermitteln
             if (!initialLoadDone) {
                 currentMatchday = determineCurrentMatchday(data);
                 initialLoadDone = true;
@@ -480,7 +479,6 @@
         renderAll();
     }
 
-    // Automatische Ermittlung des aktuellen Spieltags basierend auf dem Datum
     function determineCurrentMatchday(matches) {
         if (!matches || matches.length === 0) return 1;
 
@@ -489,7 +487,6 @@
         let minDateDiff = Infinity;
         let groupDays = {};
 
-        // Spiele nach Spieltagen gruppieren und das nahliegendste/heutige Datum finden
         matches.forEach(m => {
             if (!m.match_date) return;
             if (!groupDays[m.matchday]) {
@@ -497,14 +494,12 @@
             }
 
             let diff = Math.abs(new Date(m.match_date) - new Date(todayIso));
-            // bevorzuge Spieltage, die heute oder in der Zukunft liegen, aber nimm den nähesten
             if (m.match_date >= todayIso && diff < minDateDiff) {
                 minDateDiff = diff;
                 bestMatchday = m.matchday;
             }
         });
 
-        // Falls alle Spieltage in der Vergangenheit liegen, nimm den letzten Spieltag
         if (minDateDiff === Infinity) {
             let matchdays = Object.keys(groupDays).map(Number);
             if (matchdays.length > 0) {
@@ -750,7 +745,7 @@
                             <label>Gast</label>
                             <span style="font-size: 0.8rem; font-weight: bold;">${m.away_team}</span>
                         </div>
-                        <div class="main-group form-group">
+                        <div class="form-group">
                             <label>Tore Heim</label>
                             <input type="number" id="hs_${idx}" class="form-control" value="${m.home_score !== null ? m.home_score : ''}" min="0">
                         </div>
@@ -779,7 +774,6 @@
     function toggleAdminMode() {
         const adminCard = document.getElementById('adminCard');
         if (isAdmin) {
-            isAdmin = function(){}; // dummy
             isAdmin = false;
             adminCard.style.display = 'none';
             renderMatchdayTable();
