@@ -127,9 +127,13 @@
             margin-bottom: 15px;
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        /* NEUE STATISTIK-KACHEL STILE */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -182,9 +186,99 @@
             color: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        .trend-w { background-color: #2ecc40; } /* Sieg */
-        .trend-d { background-color: #f1e05a; color: #091a10; } /* Unentschieden */
-        .trend-l { background-color: #f85149; } /* Niederlage */
+        .trend-w { background-color: #2ecc40; }
+        .trend-d { background-color: #f1e05a; color: #091a10; }
+        .trend-l { background-color: #f85149; }
+
+        .btn-modal-open {
+            background: var(--sf-bright-green);
+            color: #091a10;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn-modal-open:hover { background: #3fe053; }
+
+        /* MODAL / POPUP STILE */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--sf-bright-green);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 650px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.7);
+            overflow: hidden;
+        }
+        .modal-header {
+            background: var(--primary-green);
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            text-transform: uppercase;
+        }
+        .modal-close-btn {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .modal-body {
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        /* Farb-Klassen NUR für den Vereinsnamen im Popup */
+        .sf-badge-win {
+            background: rgba(46, 204, 64, 0.25);
+            color: #7ee88b;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(46, 204, 64, 0.4);
+            font-weight: bold;
+        }
+        .sf-badge-draw {
+            background: rgba(241, 224, 90, 0.25);
+            color: #fbf2a9;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(241, 224, 90, 0.4);
+            font-weight: bold;
+        }
+        .sf-badge-loss {
+            background: rgba(248, 81, 73, 0.25);
+            color: #ffa29d;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+            font-weight: bold;
+        }
 
         .matchday-controls {
             display: flex;
@@ -381,9 +475,12 @@
     <div class="subtitle">Kreisliga B Gruppe 1 — Spielplan & Tabelle</div>
     <div style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 15px;">⚡ Web-App & Management: Jürgen Schützendorf</div>
 
-    <!-- SF 06 STATISTIK-KACHEL (DIREKT ÜBER DEN SPIELTAGEN) -->
+    <!-- SF 06 STATISTIK-KACHEL MIT BUTTON -->
     <div class="section-box">
-        <div class="section-header">📊 SF 06 Sterkrade — Team-Statistik</div>
+        <div class="section-header">
+            <span>📊 SF 06 Sterkrade — Team-Statistik</span>
+            <button class="btn-modal-open" onclick="openSfMatchesModal()">📅 Alle Spiele SF 06</button>
+        </div>
         
         <div class="stats-grid">
             <div class="stat-card">
@@ -521,6 +618,34 @@
 
     <div class="admin-toggle-wrapper">
         <button class="admin-toggle-btn" onclick="toggleAdminMode()">⚙️ Admin-Zugang</button>
+    </div>
+</div>
+
+<!-- POPUP MODAL FÜR SF 06 SPIELELISTE -->
+<div class="modal-overlay" id="sfMatchesModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>📅 SF 06 Sterkrade — Alle Saisonspiele</span>
+            <button class="modal-close-btn" onclick="closeSfMatchesModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 60px; text-align: center;">ST</th>
+                            <th style="width: 100px;">Termin</th>
+                            <th style="text-align: right;">Heim</th>
+                            <th style="text-align: center; width: 70px;">Erg.</th>
+                            <th>Gast</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sfMatchesModalBody">
+                        <!-- Wird per JS befüllt -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -744,34 +869,35 @@
         let homeWins = 0, awayWins = 0;
         let matchHistory = [];
 
-        // Sortiere alle Spiele chronologisch nach Spieltag
         let sortedMatches = [...allMatchesFromDB].sort((a, b) => a.matchday - b.matchday || a.match_index - b.match_index);
 
         sortedMatches.forEach(m => {
-            if (m.home_score === null || m.away_score === null) return;
             if (m.home_team !== "SF 06 Sterkrade" && m.away_team !== "SF 06 Sterkrade") return;
 
             let isHome = m.home_team === "SF 06 Sterkrade";
-            let sfGoals = isHome ? m.home_score : m.away_score;
-            let oppGoals = isHome ? m.away_score : m.home_score;
+            let hasResult = m.home_score !== null && m.away_score !== null;
 
-            goalsFor += sfGoals;
-            goalsAgainst += oppGoals;
+            if (hasResult) {
+                let sfGoals = isHome ? m.home_score : m.away_score;
+                let oppGoals = isHome ? m.away_score : m.home_score;
 
-            if (sfGoals > oppGoals) {
-                wins++;
-                if (isHome) homeWins++; else awayWins++;
-                matchHistory.push({ result: 'W', matchday: m.matchday });
-            } else if (sfGoals === oppGoals) {
-                draws++;
-                matchHistory.push({ result: 'D', matchday: m.matchday });
-            } else {
-                losses++;
-                matchHistory.push({ result: 'L', matchday: m.matchday });
+                goalsFor += sfGoals;
+                goalsAgainst += oppGoals;
+
+                if (sfGoals > oppGoals) {
+                    wins++;
+                    if (isHome) homeWins++; else awayWins++;
+                    matchHistory.push({ result: 'W', matchday: m.matchday });
+                } else if (sfGoals === oppGoals) {
+                    draws++;
+                    matchHistory.push({ result: 'D', matchday: m.matchday });
+                } else {
+                    losses++;
+                    matchHistory.push({ result: 'L', matchday: m.matchday });
+                }
             }
         });
 
-        // UI aktualisieren
         document.getElementById('statWins').textContent = wins;
         document.getElementById('statDraws').textContent = draws;
         document.getElementById('statLosses').textContent = losses;
@@ -779,14 +905,12 @@
         document.getElementById('statHomeWins').textContent = homeWins;
         document.getElementById('statAwayWins').textContent = awayWins;
 
-        // Trend / Verlauf (letzte 5 Spiele)
         let trendContainer = document.getElementById('statTrendContainer');
         trendContainer.innerHTML = '';
 
         if (matchHistory.length === 0) {
             trendContainer.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Noch keine Ergebnisse eingetragen</span>`;
         } else {
-            // Die letzten max. 5 Spiele nehmen
             let lastFive = matchHistory.slice(-5);
             lastFive.forEach(h => {
                 let badge = document.createElement('div');
@@ -796,6 +920,62 @@
                 trendContainer.appendChild(badge);
             });
         }
+    }
+
+    function openSfMatchesModal() {
+        let modalBody = document.getElementById('sfMatchesModalBody');
+        modalBody.innerHTML = '';
+
+        let sfMatches = allMatchesFromDB.filter(m => m.home_team === "SF 06 Sterkrade" || m.away_team === "SF 06 Sterkrade");
+        sfMatches.sort((a, b) => a.matchday - b.matchday || a.match_index - b.match_index);
+
+        if (sfMatches.length === 0) {
+            modalBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für SF 06 Sterkrade gefunden.</td></tr>`;
+        } else {
+            sfMatches.forEach(m => {
+                let hasResult = m.home_score !== null && m.away_score !== null;
+                let isHome = m.home_team === "SF 06 Sterkrade";
+                
+                let sfBadgeClass = '';
+                if (hasResult) {
+                    let sfGoals = isHome ? m.home_score : m.away_score;
+                    let oppGoals = isHome ? m.away_score : m.home_score;
+
+                    if (sfGoals > oppGoals) sfBadgeClass = 'sf-badge-win';
+                    else if (sfGoals === oppGoals) sfBadgeClass = 'sf-badge-draw';
+                    else sfBadgeClass = 'sf-badge-loss';
+                }
+
+                // Nur bei SF 06 die Klasse anwenden
+                let homeDisplay = m.home_team;
+                let awayDisplay = m.away_team;
+
+                if (isHome) {
+                    homeDisplay = `<span class="${sfBadgeClass}">${m.home_team}</span>`;
+                } else {
+                    awayDisplay = `<span class="${sfBadgeClass}">${m.away_team}</span>`;
+                }
+
+                let resultDisplay = hasResult ? `<strong>${m.home_score}:${m.away_score}</strong>` : `<span style="color:var(--text-muted);">-:-</span>`;
+                let formattedDate = m.match_date ? m.match_date.split('-').reverse().join('.') : 'Offen';
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align: center; color: var(--sf-bright-green); font-weight: bold;">ST ${m.matchday}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">${formattedDate}</td>
+                    <td style="text-align: right;">${homeDisplay}</td>
+                    <td style="text-align: center;">${resultDisplay}</td>
+                    <td>${awayDisplay}</td>
+                `;
+                modalBody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('sfMatchesModal').style.display = 'flex';
+    }
+
+    function closeSfMatchesModal() {
+        document.getElementById('sfMatchesModal').style.display = 'none';
     }
 
     function renderTable() {
@@ -943,6 +1123,14 @@
             renderAll();
         } else if (pin !== null) {
             alert("Falsche PIN!");
+        }
+    }
+
+    // Schließen des Modals bei Klick außerhalb des Inhalts
+    window.onclick = function(e) {
+        let modal = document.getElementById('sfMatchesModal');
+        if (e.target === modal) {
+            closeSfMatchesModal();
         }
     }
 
