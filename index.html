@@ -129,6 +129,63 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
+        /* NEUE STATISTIK-KACHEL STILE */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            background: #143522;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-card .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .stat-card .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .form-trend-box {
+            background: #143522;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .trend-badges {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .trend-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .trend-w { background-color: #2ecc40; } /* Sieg */
+        .trend-d { background-color: #f1e05a; color: #091a10; } /* Unentschieden */
+        .trend-l { background-color: #f85149; } /* Niederlage */
+
         .matchday-controls {
             display: flex;
             justify-content: space-between;
@@ -323,6 +380,45 @@
     </div>
     <div class="subtitle">Kreisliga B Gruppe 1 — Spielplan & Tabelle</div>
     <div style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 15px;">⚡ Web-App & Management: Jürgen Schützendorf</div>
+
+    <!-- SF 06 STATISTIK-KACHEL (DIREKT ÜBER DEN SPIELTAGEN) -->
+    <div class="section-box">
+        <div class="section-header">📊 SF 06 Sterkrade — Team-Statistik</div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Siege</div>
+                <div class="stat-value" id="statWins">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Unentschieden</div>
+                <div class="stat-value" id="statDraws">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Niederlagen</div>
+                <div class="stat-value" id="statLosses">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tore</div>
+                <div class="stat-value" id="statGoals">0:0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Heimsiege</div>
+                <div class="stat-value" id="statHomeWins">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Auswärtssiege</div>
+                <div class="stat-value" id="statAwayWins">0</div>
+            </div>
+        </div>
+
+        <div class="form-trend-box">
+            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">Formverlauf (letzte Spiele):</span>
+            <div class="trend-badges" id="statTrendContainer">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Noch keine Spiele gespielt</span>
+            </div>
+        </div>
+    </div>
 
     <!-- SPIELTAGS-TABELLE -->
     <div class="section-box">
@@ -602,6 +698,7 @@
 
         renderMatchdayTable();
         renderTable();
+        renderSfStats();
         if (isAdmin) renderAdminControls();
     }
 
@@ -639,6 +736,66 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function renderSfStats() {
+        let wins = 0, draws = 0, losses = 0;
+        let goalsFor = 0, goalsAgainst = 0;
+        let homeWins = 0, awayWins = 0;
+        let matchHistory = [];
+
+        // Sortiere alle Spiele chronologisch nach Spieltag
+        let sortedMatches = [...allMatchesFromDB].sort((a, b) => a.matchday - b.matchday || a.match_index - b.match_index);
+
+        sortedMatches.forEach(m => {
+            if (m.home_score === null || m.away_score === null) return;
+            if (m.home_team !== "SF 06 Sterkrade" && m.away_team !== "SF 06 Sterkrade") return;
+
+            let isHome = m.home_team === "SF 06 Sterkrade";
+            let sfGoals = isHome ? m.home_score : m.away_score;
+            let oppGoals = isHome ? m.away_score : m.home_score;
+
+            goalsFor += sfGoals;
+            goalsAgainst += oppGoals;
+
+            if (sfGoals > oppGoals) {
+                wins++;
+                if (isHome) homeWins++; else awayWins++;
+                matchHistory.push({ result: 'W', matchday: m.matchday });
+            } else if (sfGoals === oppGoals) {
+                draws++;
+                matchHistory.push({ result: 'D', matchday: m.matchday });
+            } else {
+                losses++;
+                matchHistory.push({ result: 'L', matchday: m.matchday });
+            }
+        });
+
+        // UI aktualisieren
+        document.getElementById('statWins').textContent = wins;
+        document.getElementById('statDraws').textContent = draws;
+        document.getElementById('statLosses').textContent = losses;
+        document.getElementById('statGoals').textContent = `${goalsFor}:${goalsAgainst}`;
+        document.getElementById('statHomeWins').textContent = homeWins;
+        document.getElementById('statAwayWins').textContent = awayWins;
+
+        // Trend / Verlauf (letzte 5 Spiele)
+        let trendContainer = document.getElementById('statTrendContainer');
+        trendContainer.innerHTML = '';
+
+        if (matchHistory.length === 0) {
+            trendContainer.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Noch keine Ergebnisse eingetragen</span>`;
+        } else {
+            // Die letzten max. 5 Spiele nehmen
+            let lastFive = matchHistory.slice(-5);
+            lastFive.forEach(h => {
+                let badge = document.createElement('div');
+                badge.className = `trend-badge trend-${h.result.toLowerCase()}`;
+                badge.textContent = h.result === 'W' ? 'S' : (h.result === 'D' ? 'U' : 'N');
+                badge.title = `Spieltag ${h.matchday}: ${h.result === 'W' ? 'Sieg' : (h.result === 'D' ? 'Unentschieden' : 'Niederlage')}`;
+                trendContainer.appendChild(badge);
+            });
+        }
     }
 
     function renderTable() {
