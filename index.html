@@ -911,7 +911,7 @@
         if (matchHistory.length === 0) {
             trendContainer.innerHTML = `<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Noch keine Ergebnisse eingetragen</span>`;
         } else {
-            let lastFive = matchHistory.slice(-8);
+            let lastFive = matchHistory.slice(-15);
             lastFive.forEach(h => {
                 let badge = document.createElement('div');
                 badge.className = `trend-badge trend-${h.result.toLowerCase()}`;
