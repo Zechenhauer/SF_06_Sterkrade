@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SF 06 Sterkrade — Kreisliga B Gruppe 1</title>
-    <!-- Supabase Client Bibliothek laden -->
+    <!-- Supabase Client & Chart.js Bibliothek laden -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: #091a10;
@@ -254,7 +255,6 @@
             overflow-y: auto;
         }
 
-        /* Farb-Klassen NUR für den Vereinsnamen im Popup */
         .sf-badge-win {
             background: rgba(46, 204, 64, 0.25);
             color: #7ee88b;
@@ -458,6 +458,73 @@
             font-weight: bold;
             font-size: 1rem;
         }
+
+        /* Footer-Bereich unten (Zähler & Diagramm) */
+        .footer-action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .visitor-left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .visitor-counter-box {
+            background: #143522;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .visitor-counter-box span {
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .chart-trigger-btn {
+            background: #143522;
+            border: 1px solid var(--sf-bright-green);
+            color: var(--sf-bright-green);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .chart-trigger-btn:hover { background: var(--sf-bright-green); color: #091a10; }
+
+        #visitorChartContainer {
+            display: none;
+            width: 100%;
+            background: #0d2115;
+            border: 1px solid var(--sf-bright-green);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #visitorChartContainer h4 {
+            color: #ffffff;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin: 0 0 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -473,7 +540,6 @@
         <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/vereinslogos/logo_1906.png" alt="SF 06 Logo" class="header-logo">
     </div>
     <div class="subtitle">Kreisliga B Gruppe 1 — Spielplan & Tabelle</div>
-    <div style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 15px;">⚡ Web-App & Management: Jürgen Schützendorf</div>
 
     <!-- SF 06 STATISTIK-KACHEL MIT BUTTON -->
     <div class="section-box">
@@ -619,6 +685,26 @@
     <div class="admin-toggle-wrapper">
         <button class="admin-toggle-btn" onclick="toggleAdminMode()">⚙️ Admin-Zugang</button>
     </div>
+
+    <!-- FOOTER (BESUCHER-ZÄHLER & DIAGRAMM) -->
+    <div class="footer-action-row">
+        <div class="visitor-left-group">
+            <div class="visitor-counter-box" title="Dauerhafte App-Aufrufe">
+                👁️ Aufrufe: <span id="visitorCountDisplay">-</span>
+            </div>
+            <button class="chart-trigger-btn" onclick="toggleVisitorChart()">📊 Aufruf-Diagramm</button>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">⚡ Web-App & Management: Jürgen Schützendorf</div>
+    </div>
+
+    <!-- Aufruf-Diagramm Container (Aufklappbar) -->
+    <div id="visitorChartContainer">
+        <h4>
+            <span>📈 Tägliche Seitenaufrufe (letzte 7 Tage)</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); cursor: pointer;" onclick="toggleVisitorChart()">✖ Schließen</span>
+        </h4>
+        <canvas id="visitorChart" style="max-height: 160px; width: 100%;"></canvas>
+    </div>
 </div>
 
 <!-- POPUP MODAL FÜR SF 06 SPIELELISTE -->
@@ -659,6 +745,8 @@
     let currentMatchday = 1;
     let allMatchesFromDB = [];
     let initialLoadDone = false;
+    let visitorChartInstance = null;
+    let isChartOpen = false;
 
     const teamsList = [
         "SF 06 Sterkrade",
@@ -682,6 +770,68 @@
         "VfR 08 Oberhausen II (zg. o.W.)"
     ];
 
+    function trackVisitorDaily() {
+        let today = new Date().toISOString().split('T')[0];
+        let visitorStats = JSON.parse(localStorage.getItem('sf06_visitor_stats') || '{}');
+        visitorStats[today] = (visitorStats[today] || 0) + 1;
+        localStorage.setItem('sf06_visitor_stats', JSON.stringify(visitorStats));
+    }
+
+    function toggleVisitorChart() {
+        let container = document.getElementById('visitorChartContainer');
+        isChartOpen = !isChartOpen;
+        if (isChartOpen) {
+            container.style.display = 'block';
+            renderVisitorChart();
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function renderVisitorChart() {
+        let visitorStats = JSON.parse(localStorage.getItem('sf06_visitor_stats') || '{}');
+        let labels = [];
+        let dataValues = [];
+        
+        for (let i = 6; i >= 0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            let dateStr = d.toISOString().split('T')[0];
+            let displayLabel = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+            
+            labels.push(displayLabel);
+            dataValues.push(visitorStats[dateStr] || 0);
+        }
+
+        const ctx = document.getElementById('visitorChart').getContext('2d');
+        if (visitorChartInstance) {
+            visitorChartInstance.destroy();
+        }
+
+        visitorChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Seitenaufrufe',
+                    data: dataValues,
+                    backgroundColor: '#2ecc40',
+                    borderColor: '#1e462f',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#95b39c', font: { size: 10 } }, grid: { color: '#1e462f' } },
+                    y: { ticks: { color: '#95b39c', font: { size: 10 }, stepSize: 1 }, grid: { color: '#1e462f' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
     async function loadMatches() {
         let { data, error } = await supabaseClient
             .from('sf06_matchdays')
@@ -697,6 +847,12 @@
                 initialLoadDone = true;
             }
         }
+
+        trackVisitorDaily();
+        let visitorStats = JSON.parse(localStorage.getItem('sf06_visitor_stats') || '{}');
+        let totalViews = Object.values(visitorStats).reduce((a, b) => a + b, 1);
+        document.getElementById('visitorCountDisplay').textContent = totalViews;
+
         renderAll();
     }
 
@@ -946,7 +1102,6 @@
                     else sfBadgeClass = 'sf-badge-loss';
                 }
 
-                // Nur bei SF 06 die Klasse anwenden
                 let homeDisplay = m.home_team;
                 let awayDisplay = m.away_team;
 
@@ -1126,7 +1281,6 @@
         }
     }
 
-    // Schließen des Modals bei Klick außerhalb des Inhalts
     window.onclick = function(e) {
         let modal = document.getElementById('sfMatchesModal');
         if (e.target === modal) {
